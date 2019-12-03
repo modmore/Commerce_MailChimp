@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model package="commerce_mailchimp" baseClass="comSimpleObject" platform="mysql" defaultEngine="MyISAM" version="1.1">
+    <!--<object class="MailchimpOrderMessage" extends="comOrderMessage" />-->
+    <!--<object class="MailchimpProduct" extends="comProduct" />-->
+    <!--<object class="MailchimpShippingMethod" extends="comShippingMethod" />-->
+</model>
