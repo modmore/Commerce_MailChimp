@@ -9,21 +9,27 @@ use GuzzleHttp\Exception\GuzzleException;
  * Guzzle client for the Commerce module Commerce_MailChimp
  */
 class MailChimpGuzzler {
-    protected $adapter;
+    protected $commerce;
     protected $apiKey;
     protected $urlScheme = 'https://';
-    protected $httpHost = 'api.mailchimp.com';
+    protected $apiHost = 'api.mailchimp.com';
+    protected $adminHost = 'admin.mailchimp.com';
+    protected $adminUri = 'lists/members/view';
     protected $apiUrl;
     protected $apiVersion = '3.0';
+    protected $subscriberUrl;
 
-    public function __construct(&$adapter,$apiKey) {
+    public function __construct(&$commerce,$apiKey) {
         // TODO: Verify API Key (or perhaps not as it would mean an extra request)
         $this->apiKey = $apiKey;
-        $this->adapter = $adapter;
+        $this->commerce = $commerce;
         $dataCenterCode = $this->findDataCenterCode();
 
         // Form API URL with newly found data-center code.
-        $this->apiUrl = $this->urlScheme.$dataCenterCode.'.'.$this->httpHost.'/'.$this->apiVersion.'/';
+        $this->apiUrl = $this->urlScheme.$dataCenterCode.'.'.$this->apiHost.'/'.$this->apiVersion.'/';
+
+        // Form Subscriber URL using data-center code.
+        $this->subscriberUrl = $this->urlScheme.$dataCenterCode.'.'.$this->adminHost.'/'.$this->adminUri;
     }
 
     /**
@@ -41,6 +47,14 @@ class MailChimpGuzzler {
         $size = count($exploded);
         // Return the last array value.
         return $exploded[$size - 1];
+    }
+
+    public function getSubscriberUrl() {
+        $url = $this->subscriberUrl.'?id=316780313';
+    }
+
+    public function getMailChimpSubscriberId() {
+
     }
 
     /**
@@ -71,5 +85,34 @@ class MailChimpGuzzler {
             ];
         }
         return $lists;
+    }
+
+
+    /**
+     * Function: checkSubscription
+     *
+     *
+     * @param $hash
+     * @param $listId
+     * @return bool
+     */
+    public function checkSubscription($hash,$listId) {
+        $client = new Client();
+        try {
+            $res = $client->request('GET', $this->apiUrl.'lists/'.$listId.'/members/'.$hash, [
+                'auth'      => ['apikey', $this->apiKey],
+            ]);
+        } catch(GuzzleException $guzzleException) {
+            // 404 status code means the customer is not subscribed - this is normal behaviour for MailChimp.
+            if($guzzleException->getCode() != '404') {
+                $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
+            }
+            return false;
+        }
+        $responseArray = json_decode($res->getBody(), true);
+        if ($responseArray) {
+            $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, print_r($responseArray, true));
+        }
+        return true;
     }
 }
