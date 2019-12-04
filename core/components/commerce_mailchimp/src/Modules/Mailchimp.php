@@ -81,28 +81,22 @@ class Mailchimp extends BaseModule {
      */
     public function checkEmailAddress(Checkout $event) {
         // Check if billing or shipping address should be used.
-        $addressType = $this->getConfig('addresstype','');
-        if(!$addressType) {
-            // This shouldn't ever happen.. but just in case, log an error.
-            $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_MailChimp] No address type set (shipping or billing). Unable to check for user email address.');
-        } else {
-            $data = $event->getData();
+        $addressType = $this->getConfig('addresstype','billing');
+        $order = $event->getOrder();
 
-            $isSubscribed = false;
-            if($data['address_' .$addressType. '_email']) {
-                // Check if there's an email address in the selected address type
-                $isSubscribed = $this->checkSubscription($data['address_' .$addressType. '_email']);
-            } else if($data['previously_used_' .$addressType]) {
-                // Otherwise, see if there's an email in the previously used address.
-                $isSubscribed = $this->checkSubscription($data['previously_used_' .$addressType]);
-            }
-
-            // If customer is already subscribed, add a twig placeholder so the subscribe checkbox can be hidden.
-            if($isSubscribed) {
-                $data['mailchimp_status'] = 'subscribed';
-                $event->setData($data);
-            }
+        $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
+        $isSubscribed = false;
+        if ($address instanceof \comOrderAddress) {
+            $isSubscribed = $this->checkSubscription($address->get('email'));
         }
+
+        // If customer is already subscribed, add a twig placeholder so the subscribe checkbox can be hidden.
+        if($isSubscribed) {
+            $data = $event->getData();
+            $data['mailchimp_status'] = 'subscribed';
+            $event->setData($data);
+        }
+
     }
 
 
@@ -146,7 +140,7 @@ class Mailchimp extends BaseModule {
      * @param Checkout $event
      * @param bool $subscribe
      */
-    public function addFieldToOrder(Checkout &$event,bool $subscribe) {
+    public function addFieldToOrder(Checkout $event,bool $subscribe) {
         $order = $event->getOrder();
         if ($order) {
             if($subscribe) {
@@ -195,7 +189,7 @@ class Mailchimp extends BaseModule {
             $guzzler = new MailChimpGuzzler($this->commerce, $apiKey);
             $lists = $guzzler->getLists();
             if(!$lists) return false;
-            
+
             // Select field for MailChimp lists
             $fields[] = new SelectField($this->commerce, [
                 'name' => 'properties[listid]',

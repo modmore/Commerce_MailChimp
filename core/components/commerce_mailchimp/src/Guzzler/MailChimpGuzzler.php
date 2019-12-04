@@ -19,7 +19,7 @@ class MailChimpGuzzler {
     protected $apiVersion = '3.0';
     protected $subscriberUrl;
 
-    public function __construct(&$commerce,$apiKey) {
+    public function __construct($commerce,$apiKey) {
         // TODO: Verify API Key (or perhaps not as it would mean an extra request)
         $this->apiKey = $apiKey;
         $this->commerce = $commerce;
@@ -50,6 +50,7 @@ class MailChimpGuzzler {
     }
 
     public function getSubscriberUrl() {
+        // TODO: get subscriber id for custom order field
         $url = $this->subscriberUrl.'?id=316780313';
     }
 
@@ -105,7 +106,7 @@ class MailChimpGuzzler {
         } catch(GuzzleException $guzzleException) {
             // 404 status code means the customer is not subscribed - this is normal behaviour for MailChimp.
             if($guzzleException->getCode() != '404') {
-                $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
+                $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
             }
             return false;
         }
