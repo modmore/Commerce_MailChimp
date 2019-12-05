@@ -38,16 +38,47 @@ class Mailchimp extends BaseModule {
         // Add composer libraries to the about section (v0.12+)
         $dispatcher->addListener(\Commerce::EVENT_DASHBOARD_LOAD_ABOUT, [$this, 'addLibrariesToAbout']);
 
-        // TODO: Run a check to see if module required settings are complete. Only add the listeners below if so.
+        // Allow module to run only if configuration is complete.
+        if($this->moduleReady()) {
+            // Check for opt-in value at cart, address and payment steps.
+            $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_BEFORE_STEP, [$this, 'checkOptIn']);
 
-        // Check for opt-in value at cart, address and payment steps.
-        $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_BEFORE_STEP, [$this, 'checkOptIn']);
+            // Checks if an email address is available each step and if the user is already subscribed.
+            $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_AFTER_STEP, [$this, 'checkEmailAddress']);
 
-        // Checks if an email address is available each step and if the user is already subscribed.
-        $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_AFTER_STEP, [$this, 'checkEmailAddress']);
+            // Subscribes customer to the designated Mailchimp list.
+            $dispatcher->addListener(\Commerce::EVENT_STATE_CART_TO_PROCESSING, [$this, 'subscribeCustomer']);
+        }
+    }
 
-        // Subscribes customer to the designated Mailchimp list.
-        $dispatcher->addListener(\Commerce::EVENT_STATE_CART_TO_PROCESSING, [$this, 'subscribeCustomer']);
+    /**
+     * Function: moduleReady
+     *
+     * Checks if the module's configuration has been completed.
+     *
+     * @return bool
+     */
+    public function moduleReady() {
+        // Check API key
+        if(!$this->getConfig('apikey')) {
+            $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Missing MailChimp API key.');
+            return false;
+        }
+
+        // Check list id
+        if(!$this->getConfig('listid')) {
+            $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Missing MailChimp List ID.');
+            return false;
+        }
+
+        // Check address type
+        $addressType = $this->getConfig('addresstype');
+        if(!$addressType || ($addressType !== 'billing' && $addressType !== 'shipping')) {
+            $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Address Type invalid. Either billing or shipping should be selected.');
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -103,6 +134,8 @@ class Mailchimp extends BaseModule {
     /**
      * Function: checkSubscription
      *
+     * Checks if a customer is already subscribed to the MailChimp list.
+     * Adds a flag to the customer's session if subscription is found to prevent checks running needlessly on subsequent steps.
      *
      * @param $email
      * @return bool
@@ -169,7 +202,6 @@ class Mailchimp extends BaseModule {
     public function subscribeCustomer(OrderState $event) {
         // TODO: Subscribe customer to specified list
         $this->adapter->log(MODX_LOG_LEVEL_ERROR,'Subscribing customer...');
-
 
     }
 

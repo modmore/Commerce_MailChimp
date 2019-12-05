@@ -49,6 +49,7 @@ class MailChimpGuzzler {
         return $exploded[$size - 1];
     }
 
+
     public function getSubscriberUrl() {
         // TODO: get subscriber id for custom order field
         $url = $this->subscriberUrl.'?id=316780313';
@@ -59,7 +60,12 @@ class MailChimpGuzzler {
     }
 
     /**
+     * Function: getLists
      *
+     * Returns an array of lists in assigned MailChimp account.
+     * Array is formatted for the standard Commerce select field.
+     *
+     * @return array|bool
      */
     public function getLists() {
         $client = new Client();
@@ -68,12 +74,9 @@ class MailChimpGuzzler {
                 'auth'      => ['apikey', $this->apiKey],
             ]);
         } catch(GuzzleException $guzzleException) {
-            // TODO: Do something with the exception.
+            $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
             return false;
         }
-
-        //$this->adapter->log(MODX_LOG_LEVEL_ERROR,$res->getStatusCode());
-        // "200"
 
         $responseArray = json_decode($res->getBody(),true);
         if(!$responseArray) return false;
@@ -92,6 +95,9 @@ class MailChimpGuzzler {
     /**
      * Function: checkSubscription
      *
+     * Checks if a customer is already subscribed to the MailChimp list or not.
+     * Returns a simple true or false.
+     * Requires the Mailchimp list id and an MD5 hash of the customer's email address (lowercase).
      *
      * @param $hash
      * @param $listId
@@ -106,7 +112,7 @@ class MailChimpGuzzler {
         } catch(GuzzleException $guzzleException) {
             // 404 status code means the customer is not subscribed - this is normal behaviour for MailChimp.
             if($guzzleException->getCode() != '404') {
-                $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
+                $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
             }
             return false;
         }
