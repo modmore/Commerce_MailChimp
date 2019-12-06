@@ -211,10 +211,14 @@ class Mailchimp extends BaseModule {
             $customerData['merge_fields']['LNAME'] = $lastName;
 
             $customerDataJSON = json_encode($customerData);
-            $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,$customerDataJSON);
+            //$this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,$customerDataJSON);
 
             $guzzler = new MailChimpGuzzler($this->commerce,$this->getConfig('apikey'));
+
             $result = $guzzler->subscribeCustomer($this->getConfig('listid'),$customerDataJSON);
+
+            // Add order field for the new subscriber
+            $this->addOrderField($order, $result['web_id']);
 
         }
 

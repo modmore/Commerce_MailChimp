@@ -67,7 +67,7 @@ class MailChimpGuzzler {
         if(!$responseArray) return false;
         $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,print_r($responseArray,true));
 
-        return '';
+        return $responseArray;
     }
 
     /**
