@@ -44,7 +44,10 @@ class Mailchimp extends BaseModule {
             $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_BEFORE_STEP, [$this, 'checkOptIn']);
 
             // Checks if an email address is available each step and if the user is already subscribed.
-            $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_AFTER_STEP, [$this, 'checkEmailAddress']);
+            $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_BEFORE_STEP, [$this, 'checkEmailAddress']);
+
+            // Adds a subscribed placeholder to the template each step.
+            $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_AFTER_STEP, [$this, 'addPlaceholder']);
 
             // Subscribes customer to the designated Mailchimp list.
             $dispatcher->addListener(\Commerce::EVENT_STATE_CART_TO_PROCESSING, [$this, 'subscribeCustomer']);
@@ -55,7 +58,6 @@ class Mailchimp extends BaseModule {
      * Function: moduleReady
      *
      * Checks if the module's configuration has been completed.
-     *
      * @return bool
      */
     public function moduleReady() {
@@ -95,11 +97,10 @@ class Mailchimp extends BaseModule {
             case 'address':
             case 'payment':
                 $data = $event->getData();
-                if($data['mailchimp_opt_in']) {
-                    $optIn = filter_var($data['mailchimp_opt_in'],FILTER_SANITIZE_STRING);
-                    if($optIn === 'on') {
-                        $this->addFieldToOrder($event,true);
-                    }
+                if($data['mailchimp_opt_in'] === 'on') {
+                    $order = $event->getOrder();
+                    $order->setProperty('mailchimp_opt_in',true);
+                    $order->save();
                 }
         }
     }
@@ -111,97 +112,135 @@ class Mailchimp extends BaseModule {
      * @param Checkout $event
      */
     public function checkEmailAddress(Checkout $event) {
-        // Check if billing or shipping address should be used.
-        $addressType = $this->getConfig('addresstype','billing');
         $order = $event->getOrder();
+        if($order->getProperty('mailchimp_status') === 'subscribed')
+        return;
+
+        // Check if billing or shipping address should be used.
+        $addressType = $this->getConfig('addresstype', 'billing');
 
         $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
-        $isSubscribed = false;
+        $subscriberId = false;
         if ($address instanceof \comOrderAddress) {
-            $isSubscribed = $this->checkSubscription($address->get('email'));
+            $subscriberId = $this->checkSubscription($address->get('email'));
         }
 
-        // If customer is already subscribed, add a twig placeholder so the subscribe checkbox can be hidden.
-        if($isSubscribed) {
-            $data = $event->getData();
-            $data['mailchimp_status'] = 'subscribed';
-            $event->setData($data);
+        // Save subscribed status to be used for placeholder after step, and save subscriber id
+        if ($subscriberId) {
+            $order->setProperty('mailchimp_status','subscribed');
+            $order->setProperty('mailchimp_subscriber_id',$subscriberId);
         }
-
     }
 
+    /**
+     * Function: addPlaceholder
+     *
+     * Adds a placeholder to a template if a customer has subscribed status
+     * @param Checkout $event
+     */
+    public function addPlaceholder(Checkout $event) {
+        $order = $event->getOrder();
+        if($order->getProperty('mailchimp_status') === 'subscribed') {
+            $data = $event->getData();
+            $data['mailchimp_subscribed'] = true;
+            $event->setData($data);
+        }
+    }
 
     /**
      * Function: checkSubscription
      *
      * Checks if a customer is already subscribed to the MailChimp list.
-     * Adds a flag to the customer's session if subscription is found to prevent checks running needlessly on subsequent steps.
-     *
      * @param $email
      * @return bool
      */
     public function checkSubscription($email) {
-        // If it was determined the customer was subscribed on a previous step, don't repeat the check.
-        if($_SESSION['commerce_mailchimp_subscribed']) {
-            return true;
-        } else {
-            // Make sure the email is lowercase.
-            $email = strtolower($email);
+        // Make sure the email is lowercase.
+        $email = strtolower($email);
 
-            // Get an md5 hash of the email address
-            $hash = md5($email);
+        // Get an md5 hash of the email address
+        $hash = md5($email);
 
-            // Get the list id
-            $listId = $this->getConfig('listid');
+        // Get the list id
+        $listId = $this->getConfig('listid');
 
-            $guzzler = new MailChimpGuzzler($this->commerce, $this->getConfig('apikey'));
-            $result = $guzzler->checkSubscription($hash, $listId);
-            if($result) {
-                $_SESSION['commerce_mailchimp_subscribed'] = true;
-                return true;
-            } else {
-                return false;
-            }
-        }
+        $guzzler = new MailChimpGuzzler($this->commerce, $this->getConfig('apikey'));
+        $subscriberId = $guzzler->checkSubscription($hash, $listId);
+
+        // Return the subscriberId if there is a subscription.
+        return $subscriberId ? $subscriberId : false;
     }
 
     /**
-     * Function: addFieldToOrder
+     * Function: subscribeCustomer
      *
-     * Adds either a MailChimpSubscriptionField or a Text field to the correct Order depending on whether
-     * the customer should be subscribed.
-     * @param Checkout $event
-     * @param bool $subscribe
+     *
+     * @param OrderState $event
      */
-    public function addFieldToOrder(Checkout $event,bool $subscribe) {
+    public function subscribeCustomer(OrderState $event) {
         $order = $event->getOrder();
-        if ($order) {
-            if($subscribe) {
-                // Add the subscribe order field to the order
-                $apiKey = $this->getConfig('apikey');
-                $field = new MailChimpSubscriptionField($this->commerce,
-                    'mailchimp_order_field.label.subscribe',
-                    true
-                );
-                $field->loadMailChimpData($apiKey);
-                $order->setOrderField($field);
-            } else {
-                // Add a plain text field showing the customer is not subscribed.
-                $field = new Text($this->commerce,
-                    'mailchimp_order_field.label.not_subscribed',
-                    $this->adapter->lexicon('commerce_mailchimp.order_field.value.not_subscribed')
-                );
-                $order->setOrderField($field);
-            }
-        } else {
-            $this->adapter->log(MODX_LOG_LEVEL_ERROR, 'Unable to retrieve order object.');
+
+        // Don't subscribe customer if they haven't opted in and are not subscribed already
+        if(!$order->getProperty('mailchimp_opt_in') && !$order->getProperty('mailchimp_status')) {
+            $this->addOrderField($order);
+            return;
+        }
+
+        // If customer is already subscribed, grab their subscriberId and add the MailChimpSubscriptionField (ignore any opt-in)
+        if($order->getProperty('mailchimp_status')) {
+            $this->addOrderField($order, $order->getProperty('mailchimp_subscriber_id'));
+            return;
+        }
+
+        // Gather customer data for new subscriber
+        $addressType = $this->getConfig('addresstype');
+        $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
+
+        if ($address instanceof \comOrderAddress) {
+            // Try to get value from 'firstname' field. Otherwise just add 'fullname' as FNAME
+            $firstName = $address->get('firstname') ? $address->get('firstname') : $address->get('fullname');
+
+            // Try to get 'lastname'. POST will fail with an empty last name, so add a space if no value.
+            $lastName = $address->get('lastname') ? $address->get('lastname') : ' ';
+
+            // If user chose double opt-in, set the status to pending for the new subscription.
+            $customerData = [];
+            $customerData['email_address'] = $address->get('email');
+            $customerData['status'] = $this->getConfig('doubleoptin') ? 'pending' : 'subscribed';
+            $customerData['merge_fields']['FNAME'] = $firstName;
+            $customerData['merge_fields']['LNAME'] = $lastName;
+
+            $customerDataJSON = json_encode($customerData);
+            $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,$customerDataJSON);
+
+            $guzzler = new MailChimpGuzzler($this->commerce,$this->getConfig('apikey'));
+            $result = $guzzler->subscribeCustomer($this->getConfig('listid'),$customerDataJSON);
+
         }
 
     }
 
-    public function subscribeCustomer(OrderState $event) {
-        // TODO: Subscribe customer to specified list
-        $this->adapter->log(MODX_LOG_LEVEL_ERROR,'Subscribing customer...');
+    /**
+     * Function: addOrderField
+     *
+     * Adds a field to the order so the admin can see if the customer is subscribed or not.
+     * Pass in a MailChimp subscriberId to show the MailChimpSubscriptionField on the order.
+     * @param \comOrder $order
+     * @param null $subscriberId
+     */
+    public function addOrderField(\comOrder $order, $subscriberId = null) {
+        if($subscriberId) {
+            $apiKey = $this->getConfig('apikey');
+            $field = new MailChimpSubscriptionField($this->commerce, 'mailchimp_field.subscribe', true);
+            if($subscriberId) {
+                $field->setSubscriberId($this->getConfig('apikey'),$subscriberId);
+            }
+            $order->setOrderField($field);
+        } else {
+            // Add a plain text field showing the customer is not subscribed.
+            $field = new Text($this->commerce, 'mailchimp_field.not_subscribed', $this->adapter->lexicon('commerce_mailchimp.order_field.value.not_subscribed'));
+            $order->setOrderField($field);
+        }
 
     }
 

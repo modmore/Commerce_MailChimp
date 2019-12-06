@@ -20,7 +20,6 @@ class MailChimpGuzzler {
     protected $subscriberUrl;
 
     public function __construct($commerce,$apiKey) {
-        // TODO: Verify API Key (or perhaps not as it would mean an extra request)
         $this->apiKey = $apiKey;
         $this->commerce = $commerce;
         $dataCenterCode = $this->findDataCenterCode();
@@ -37,10 +36,9 @@ class MailChimpGuzzler {
      *
      * Mailchimp's API URL is dependent on the data-center code at the end of an assigned API key.
      * This function grabs the API key and returns the final portion delimited by a hyphen.
-     *
      * @return bool|mixed
      */
-    protected function findDataCenterCode() {
+    public function findDataCenterCode() {
         if(!$this->apiKey) return false;
         $exploded = explode('-',$this->apiKey);
         // Check length of array in case api key format changes in the future.
@@ -49,14 +47,27 @@ class MailChimpGuzzler {
         return $exploded[$size - 1];
     }
 
-
-    public function getSubscriberUrl() {
-        // TODO: get subscriber id for custom order field
-        $url = $this->subscriberUrl.'?id=316780313';
+    public function getSubscriberUrl($subscriberId) {
+        return $this->subscriberUrl.'?id='.$subscriberId;
     }
 
-    public function getMailChimpSubscriberId() {
+    public function subscribeCustomer($listId,$json) {
+        $client = new Client();
+        try {
+            $res = $client->request('POST', $this->apiUrl.'lists/'.$listId.'/members/', [
+                'auth'      =>  ['apikey', $this->apiKey],
+                'body'      =>  $json
+            ]);
+        } catch(GuzzleException $guzzleException) {
+            $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
+            return false;
+        }
 
+        $responseArray = json_decode($res->getBody(),true);
+        if(!$responseArray) return false;
+        $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,print_r($responseArray,true));
+
+        return '';
     }
 
     /**
@@ -64,7 +75,6 @@ class MailChimpGuzzler {
      *
      * Returns an array of lists in assigned MailChimp account.
      * Array is formatted for the standard Commerce select field.
-     *
      * @return array|bool
      */
     public function getLists() {
@@ -98,7 +108,6 @@ class MailChimpGuzzler {
      * Checks if a customer is already subscribed to the MailChimp list or not.
      * Returns a simple true or false.
      * Requires the Mailchimp list id and an MD5 hash of the customer's email address (lowercase).
-     *
      * @param $hash
      * @param $listId
      * @return bool
@@ -118,8 +127,10 @@ class MailChimpGuzzler {
         }
         $responseArray = json_decode($res->getBody(), true);
         if ($responseArray) {
-            $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, print_r($responseArray, true));
+            return $responseArray['web_id'];
+            //$this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, print_r($responseArray, true));
+        } else {
+            return false;
         }
-        return true;
     }
 }
