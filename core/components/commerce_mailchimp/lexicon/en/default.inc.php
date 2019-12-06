@@ -24,3 +24,5 @@ $_lang['commerce.mailchimp_field.not_subscribed'] = 'MailChimp';
 $_lang['commerce_mailchimp.order_field.value.subscribed'] = 'Subscribed';
 $_lang['commerce_mailchimp.order_field.value.not_subscribed'] = 'Not Subscribed';
 $_lang['commerce_mailchimp.order_field.description'] = 'Click here to view this customer\'s subscription details in MailChimp.';
+
+$_lang['commerce_mailchimp.subscribe_to_newsletter'] = 'Subscribe to newsletter?';
