@@ -1,11 +1,10 @@
 <?php
+
 namespace modmore\Commerce_MailChimp\Modules;
-use modmore\Commerce\Admin\Configuration\About\ComposerPackages;
-use modmore\Commerce\Admin\Sections\SimpleSection;
+
 use modmore\Commerce\Admin\Widgets\Form\CheckboxField;
 use modmore\Commerce\Admin\Widgets\Form\PasswordField;
 use modmore\Commerce\Admin\Widgets\Form\SelectField;
-use modmore\Commerce\Events\Admin\PageEvent;
 use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
 use modmore\Commerce\Modules\BaseModule;
@@ -14,32 +13,35 @@ use modmore\Commerce_MailChimp\Fields\MailChimpSubscriptionField;
 use modmore\Commerce_MailChimp\Guzzler\MailChimpGuzzler;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
-require_once dirname(dirname(__DIR__)) . '/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-class Mailchimp extends BaseModule {
+class Mailchimp extends BaseModule
+{
 
-    public function getName() {
+    public function getName()
+    {
         $this->adapter->loadLexicon('commerce_mailchimp:default');
+
         return $this->adapter->lexicon('commerce_mailchimp');
     }
 
-    public function getAuthor() {
+    public function getAuthor()
+    {
         return 'modmore';
     }
 
-    public function getDescription() {
+    public function getDescription()
+    {
         return $this->adapter->lexicon('commerce_mailchimp.description');
     }
 
-    public function initialize(EventDispatcher $dispatcher) {
+    public function initialize(EventDispatcher $dispatcher)
+    {
         // Load our lexicon
         $this->adapter->loadLexicon('commerce_mailchimp:default');
 
-        // Add composer libraries to the about section (v0.12+)
-        $dispatcher->addListener(\Commerce::EVENT_DASHBOARD_LOAD_ABOUT, [$this, 'addLibrariesToAbout']);
-
         // Allow module to run only if configuration is complete.
-        if($this->moduleReady()) {
+        if ($this->moduleReady()) {
             // Check for opt-in value at cart, address and payment steps.
             $dispatcher->addListener(\Commerce::EVENT_CHECKOUT_BEFORE_STEP, [$this, 'checkOptIn']);
 
@@ -60,22 +62,23 @@ class Mailchimp extends BaseModule {
      * Checks if the module's configuration has been completed.
      * @return bool
      */
-    public function moduleReady() {
+    public function moduleReady()
+    {
         // Check API key
-        if(!$this->getConfig('apikey')) {
+        if (!$this->getConfig('apikey')) {
             $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Missing MailChimp API key.');
             return false;
         }
 
         // Check list id
-        if(!$this->getConfig('listid')) {
+        if (!$this->getConfig('listid')) {
             $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Missing MailChimp List ID.');
             return false;
         }
 
         // Check address type
         $addressType = $this->getConfig('addresstype');
-        if(!$addressType || ($addressType !== 'billing' && $addressType !== 'shipping')) {
+        if (!$addressType || ($addressType !== 'billing' && $addressType !== 'shipping')) {
             $this->adapter->log(MODX_LOG_LEVEL_ERROR, '[Commerce_Mailchimp] Unable to initialize. Address Type invalid. Either billing or shipping should be selected.');
             return false;
         }
@@ -90,16 +93,17 @@ class Mailchimp extends BaseModule {
      * Adds a flag to the order.
      * @param Checkout $event
      */
-    public function checkOptIn(Checkout $event) {
+    public function checkOptIn(Checkout $event)
+    {
         // Ignore steps that are not cart, address or payment.
-        switch($event->getStepKey()) {
+        switch ($event->getStepKey()) {
             case 'cart':
             case 'address':
             case 'payment':
                 $data = $event->getData();
-                if($data['mailchimp_opt_in'] === 'on') {
+                if ($data['mailchimp_opt_in'] === 'on') {
                     $order = $event->getOrder();
-                    $order->setProperty('mailchimp_opt_in',true);
+                    $order->setProperty('mailchimp_opt_in', true);
                     $order->save();
                 }
         }
@@ -111,10 +115,12 @@ class Mailchimp extends BaseModule {
      * Each step of checkout, checks for a logged in user and their email address.
      * @param Checkout $event
      */
-    public function checkEmailAddress(Checkout $event) {
+    public function checkEmailAddress(Checkout $event): void
+    {
         $order = $event->getOrder();
-        if($order->getProperty('mailchimp_status') === 'subscribed')
-        return;
+        if ($order->getProperty('mailchimp_status') === 'subscribed') {
+            return;
+        }
 
         // Check if billing or shipping address should be used.
         $addressType = $this->getConfig('addresstype', 'billing');
@@ -127,8 +133,8 @@ class Mailchimp extends BaseModule {
 
         // Save subscribed status to be used for placeholder after step, and save subscriber id
         if ($subscriberId) {
-            $order->setProperty('mailchimp_status','subscribed');
-            $order->setProperty('mailchimp_subscriber_id',$subscriberId);
+            $order->setProperty('mailchimp_status', 'subscribed');
+            $order->setProperty('mailchimp_subscriber_id', $subscriberId);
         }
     }
 
@@ -138,9 +144,10 @@ class Mailchimp extends BaseModule {
      * Adds a placeholder to a template if a customer has subscribed status
      * @param Checkout $event
      */
-    public function addPlaceholder(Checkout $event) {
+    public function addPlaceholder(Checkout $event): void
+    {
         $order = $event->getOrder();
-        if($order->getProperty('mailchimp_status') === 'subscribed') {
+        if ($order->getProperty('mailchimp_status') === 'subscribed') {
             $data = $event->getData();
             $data['mailchimp_subscribed'] = true;
             $event->setData($data);
@@ -154,7 +161,8 @@ class Mailchimp extends BaseModule {
      * @param $email
      * @return bool
      */
-    public function checkSubscription($email) {
+    public function checkSubscription($email): bool
+    {
         // Make sure the email is lowercase.
         $email = strtolower($email);
 
@@ -177,18 +185,21 @@ class Mailchimp extends BaseModule {
      *
      * @param OrderState $event
      */
-    public function subscribeCustomer(OrderState $event) {
+    public function subscribeCustomer(OrderState $event): void
+    {
         $order = $event->getOrder();
 
         // Don't subscribe customer if they haven't opted in and are not subscribed already
-        if(!$order->getProperty('mailchimp_opt_in') && !$order->getProperty('mailchimp_status')) {
+        if (!$order->getProperty('mailchimp_opt_in') && !$order->getProperty('mailchimp_status')) {
             $this->addOrderField($order);
+
             return;
         }
 
         // If customer is already subscribed, grab their subscriberId and add the MailChimpSubscriptionField (ignore any opt-in)
-        if($order->getProperty('mailchimp_status')) {
+        if ($order->getProperty('mailchimp_status')) {
             $this->addOrderField($order, $order->getProperty('mailchimp_subscriber_id'));
+
             return;
         }
 
@@ -211,10 +222,9 @@ class Mailchimp extends BaseModule {
             $customerData['merge_fields']['LNAME'] = $lastName;
 
             $customerDataJSON = json_encode($customerData);
-            //$this->commerce->modx->log(MODX_LOG_LEVEL_ERROR,$customerDataJSON);
 
-            $guzzler = new MailChimpGuzzler($this->commerce,$this->getConfig('apikey'));
-            $result = $guzzler->subscribeCustomer($this->getConfig('listid'),$customerDataJSON);
+            $guzzler = new MailChimpGuzzler($this->commerce, $this->getConfig('apikey'));
+            $result = $guzzler->subscribeCustomer($this->getConfig('listid'), $customerDataJSON);
 
             // Add order field for the new subscriber
             $this->addOrderField($order, $result['web_id']);
@@ -231,38 +241,41 @@ class Mailchimp extends BaseModule {
      * @param \comOrder $order
      * @param null $subscriberId
      */
-    public function addOrderField(\comOrder $order, $subscriberId = null) {
-        if($subscriberId) {
-            $apiKey = $this->getConfig('apikey');
+    public function addOrderField(\comOrder $order, $subscriberId = null): void
+    {
+        if ($subscriberId) {
             $field = new MailChimpSubscriptionField($this->commerce, 'mailchimp_field.subscribe', true);
-            if($subscriberId) {
-                $field->setSubscriberId($this->getConfig('apikey'),$subscriberId);
+            if ($subscriberId) {
+                $field->setSubscriberId($this->getConfig('apikey'), $subscriberId);
             }
-            $order->setOrderField($field);
         } else {
             // Add a plain text field showing the customer is not subscribed.
             $field = new Text($this->commerce, 'mailchimp_field.not_subscribed', $this->adapter->lexicon('commerce_mailchimp.order_field.value.not_subscribed'));
-            $order->setOrderField($field);
         }
+        $order->setOrderField($field);
 
     }
 
-    public function getModuleConfiguration(\comModule $module) {
-        $apiKey = $module->getProperty('apikey','');
+    public function getModuleConfiguration(\comModule $module)
+    {
+        $apiKey = $module->getProperty('apikey', '');
 
         $fields = [];
         $fields[] = new PasswordField($this->commerce, [
-            'name'          => 'properties[apikey]',
-            'label'         => $this->adapter->lexicon('commerce_mailchimp.api_key'),
-            'description'   => $this->adapter->lexicon('commerce_mailchimp.api_key.description'),
-            'value'         => $apiKey
+            'name' => 'properties[apikey]',
+            'label' => $this->adapter->lexicon('commerce_mailchimp.api_key'),
+            'description' => $this->adapter->lexicon('commerce_mailchimp.api_key.description'),
+            'value' => $apiKey
         ]);
 
         // On saving the module config modal, the form will reload adding the extra fields once an API key has been added.
-        if($apiKey != '') {
+        if ($apiKey !== '') {
             $guzzler = new MailChimpGuzzler($this->commerce, $apiKey);
             $lists = $guzzler->getLists();
-            if(!$lists) return false;
+
+            if (!$lists) {
+                return $fields;
+            }
 
             // Select field for MailChimp lists
             $fields[] = new SelectField($this->commerce, [
@@ -281,41 +294,25 @@ class Mailchimp extends BaseModule {
                 'value' => $module->getProperty('listid', 'billing'),
                 'options' => [
                     [
-                        'value' =>  'billing',
-                        'label' =>  $this->adapter->lexicon('commerce_mailchimp.address_type.billing')
+                        'value' => 'billing',
+                        'label' => $this->adapter->lexicon('commerce_mailchimp.address_type.billing')
                     ],
                     [
-                        'value' =>  'shipping',
-                        'label' =>  $this->adapter->lexicon('commerce_mailchimp.address_type.shipping')
+                        'value' => 'shipping',
+                        'label' => $this->adapter->lexicon('commerce_mailchimp.address_type.shipping')
                     ]
                 ]
             ]);
 
             // Checkbox to enable double opt-in for MailChimp subscriptions.
             $fields[] = new CheckboxField($this->commerce, [
-                'name'          => 'properties[doubleoptin]',
-                'label'         => $this->adapter->lexicon('commerce_mailchimp.double_opt_in'),
-                'description'   => $this->adapter->lexicon('commerce_mailchimp.double_opt_in.description'),
-                'value'         => $module->getProperty('doubleoptin', '')
+                'name' => 'properties[doubleoptin]',
+                'label' => $this->adapter->lexicon('commerce_mailchimp.double_opt_in'),
+                'description' => $this->adapter->lexicon('commerce_mailchimp.double_opt_in.description'),
+                'value' => $module->getProperty('doubleoptin', '')
             ]);
         }
 
         return $fields;
     }
-
-    public function addLibrariesToAbout(PageEvent $event) {
-        $lockFile = dirname(dirname(__DIR__)) . '/composer.lock';
-        if (file_exists($lockFile)) {
-            $section = new SimpleSection($this->commerce);
-            $section->addWidget(new ComposerPackages($this->commerce, [
-                'lockFile' => $lockFile,
-                'heading' => $this->adapter->lexicon('commerce.about.open_source_libraries') . ' - ' . $this->adapter->lexicon('commerce_mailchimp'),
-                'introduction' => '', // Could add information about how libraries are used, if you'd like
-            ]));
-
-            $about = $event->getPage();
-            $about->addSection($section);
-        }
-    }
-
 }
