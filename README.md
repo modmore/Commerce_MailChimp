@@ -1,6 +1,6 @@
 # Commerce_MailChimp
 
-Commerce_MailChimp is an official Modmore extra for Commerce. During checkout, customers can be signed up to a predefined MailChimp list automatically.
+Commerce_MailChimp is an official modmore extra for Commerce. During checkout, customers can be signed up to a predefined MailChimp list automatically.
 
 Features
 -
