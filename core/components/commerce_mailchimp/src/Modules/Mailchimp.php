@@ -9,8 +9,8 @@ use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
-use modmore\Commerce_MailChimp\Fields\MailChimpSubscriptionField;
-use modmore\Commerce_MailChimp\Guzzler\MailChimpGuzzler;
+use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
+use modmore\Commerce_MailChimp\MailchimpClient;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -172,7 +172,7 @@ class Mailchimp extends BaseModule
         // Get the list id
         $listId = $this->getConfig('listid');
 
-        $guzzler = new MailChimpGuzzler($this->commerce, $this->getConfig('apikey'));
+        $guzzler = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
         $subscriberId = $guzzler->checkSubscription($hash, $listId);
 
         // Return the subscriberId if there is a subscription.
@@ -223,7 +223,7 @@ class Mailchimp extends BaseModule
 
             $customerDataJSON = json_encode($customerData);
 
-            $guzzler = new MailChimpGuzzler($this->commerce, $this->getConfig('apikey'));
+            $guzzler = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
             $result = $guzzler->subscribeCustomer($this->getConfig('listid'), $customerDataJSON);
 
             // Add order field for the new subscriber
@@ -244,7 +244,7 @@ class Mailchimp extends BaseModule
     public function addOrderField(\comOrder $order, $subscriberId = null): void
     {
         if ($subscriberId) {
-            $field = new MailChimpSubscriptionField($this->commerce, 'mailchimp_field.subscribe', true);
+            $field = new SubscriptionStatus($this->commerce, 'mailchimp_field.subscribe', true);
             if ($subscriberId) {
                 $field->setSubscriberId($this->getConfig('apikey'), $subscriberId);
             }
@@ -270,7 +270,7 @@ class Mailchimp extends BaseModule
 
         // On saving the module config modal, the form will reload adding the extra fields once an API key has been added.
         if ($apiKey !== '') {
-            $guzzler = new MailChimpGuzzler($this->commerce, $apiKey);
+            $guzzler = new MailchimpClient($this->commerce, $apiKey);
             $lists = $guzzler->getLists();
 
             if (!$lists) {

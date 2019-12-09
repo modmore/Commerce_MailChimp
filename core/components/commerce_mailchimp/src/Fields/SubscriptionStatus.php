@@ -1,7 +1,7 @@
 <?php
 namespace modmore\Commerce_MailChimp\Fields;
 use modmore\Commerce\Order\Field\AbstractField;
-use modmore\Commerce_MailChimp\Guzzler\MailChimpGuzzler;
+use modmore\Commerce_MailChimp\MailchimpClient;
 
 /**
  * Class MailChimpSubscriptionField
@@ -9,7 +9,7 @@ use modmore\Commerce_MailChimp\Guzzler\MailChimpGuzzler;
  * Renders a view of the subscribed MailChimp user.
  * @package modmore\Commerce_MailChimp\Fields
  */
-class MailChimpSubscriptionField extends AbstractField {
+class SubscriptionStatus extends AbstractField {
     protected $guzzler;
 
     /**
@@ -20,7 +20,7 @@ class MailChimpSubscriptionField extends AbstractField {
      * @param $subscriberId
      */
     public function setSubscriberId($apiKey,$subscriberId) {
-        $this->guzzler = new MailChimpGuzzler($this->commerce,$apiKey);
+        $this->guzzler = new MailchimpClient($this->commerce,$apiKey);
         $this->value = $this->guzzler->getSubscriberUrl($subscriberId);
     }
 

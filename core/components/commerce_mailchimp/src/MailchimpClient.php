@@ -1,6 +1,6 @@
 <?php
 
-namespace modmore\Commerce_MailChimp\Guzzler;
+namespace modmore\Commerce_MailChimp;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -10,7 +10,7 @@ use GuzzleHttp\Exception\GuzzleException;
  *
  * Guzzle client for the Commerce module Commerce_MailChimp
  */
-class MailChimpGuzzler
+class MailchimpClient
 {
     protected $commerce;
     protected $apiKey;
