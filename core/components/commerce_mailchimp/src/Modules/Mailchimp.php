@@ -7,6 +7,7 @@ use modmore\Commerce\Admin\Widgets\Form\PasswordField;
 use modmore\Commerce\Admin\Widgets\Form\SelectField;
 use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
+use modmore\Commerce\Gateways\Helpers\GatewayHelper;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
@@ -208,11 +209,11 @@ class Mailchimp extends BaseModule
         $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
 
         if ($address instanceof \comOrderAddress) {
-            // Try to get value from 'firstname' field. Otherwise just add 'fullname' as FNAME
-            $firstName = $address->get('firstname') ? $address->get('firstname') : $address->get('fullname');
-
-            // Try to get 'lastname'. POST will fail with an empty last name, so add a space if no value.
-            $lastName = $address->get('lastname') ? $address->get('lastname') : ' ';
+            // Try to get the right names
+            $firstName = $address->get('firstname');
+            $lastName = $address->get('lastname');
+            $fullName = $address->get('fullname');
+            GatewayHelper::normalizeNames($lastName, $lastName, $fullName);
 
             // If user chose double opt-in, set the status to pending for the new subscription.
             $customerData = [];
