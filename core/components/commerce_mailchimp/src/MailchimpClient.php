@@ -135,8 +135,8 @@ class MailchimpClient
                 'auth' => ['apikey', $this->apiKey],
             ]);
         } catch (GuzzleException $guzzleException) {
-            // 404 status code means the customer is not subscribed - this is normal behaviour for MailChimp.
-            if ($guzzleException->getCode() !== '404') {
+            // 404 status code means the customer is not subscribed - this is normal behaviour for MailChimp. (Code is returned as integer)
+            if ($guzzleException->getCode() !== 404) {
                 $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
             }
             return false;

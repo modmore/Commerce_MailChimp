@@ -119,23 +119,33 @@ class Mailchimp extends BaseModule
     public function checkEmailAddress(Checkout $event): void
     {
         $order = $event->getOrder();
-        if ($order->getProperty('mailchimp_status') === 'subscribed') {
-            return;
-        }
 
         // Check if billing or shipping address should be used.
         $addressType = $this->getConfig('addresstype', 'billing');
-
         $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
+
+        if ($order->getProperty('mailchimp_status') === 'subscribed') {
+            // To prevent subscribed status not updating if a user goes back and changes their email address,
+            // only return early if the email is still the same. Otherwise, re-check MailChimp subscription and
+            // update the order property values below.
+            if($address->get('email') === $order->getProperty('mailchimp_email')) {
+                return;
+            }
+        }
+
         $subscriberId = false;
         if ($address instanceof \comOrderAddress) {
             $subscriberId = $this->checkSubscription($address->get('email'));
         }
 
         // Save subscribed status to be used for placeholder after step, and save subscriber id
+        $order->setProperty('mailchimp_email', $address->get('email'));
         if ($subscriberId) {
             $order->setProperty('mailchimp_status', 'subscribed');
             $order->setProperty('mailchimp_subscriber_id', $subscriberId);
+        } else {
+            $order->setProperty('mailchimp_status', '');
+            $order->setProperty('mailchimp_subscriber_id', '');
         }
     }
 
@@ -173,8 +183,8 @@ class Mailchimp extends BaseModule
         // Get the list id
         $listId = $this->getConfig('listid');
 
-        $guzzler = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
-        $subscriberId = $guzzler->checkSubscription($hash, $listId);
+        $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
+        $subscriberId = $mailChimpClient->checkSubscription($hash, $listId);
 
         // Return the subscriberId if there is a subscription.
         return $subscriberId ? $subscriberId : false;
