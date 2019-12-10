@@ -166,7 +166,6 @@ class MailchimpClient
         }
         $responseArray = json_decode($res->getBody(), true);
         if (is_array($responseArray)) {
-            $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR, 'subscriberId '.$responseArray['web_id']);
             return $responseArray['web_id'];
         }
 

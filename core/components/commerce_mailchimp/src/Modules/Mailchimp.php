@@ -214,8 +214,6 @@ class Mailchimp extends BaseModule
             $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
             $result = $mailChimpClient->subscribeCustomer($this->getConfig('listid'), $address, $this->getConfig('doubleoptin'));
 
-            $this->commerce->modx->log(1,print_r($result,true));
-
             // Add order field for the new subscriber
             $this->addOrderField($order, $result['web_id']);
         }
