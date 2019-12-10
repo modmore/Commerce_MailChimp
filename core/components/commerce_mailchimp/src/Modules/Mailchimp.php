@@ -7,7 +7,6 @@ use modmore\Commerce\Admin\Widgets\Form\PasswordField;
 use modmore\Commerce\Admin\Widgets\Form\SelectField;
 use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
-use modmore\Commerce\Gateways\Helpers\GatewayHelper;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
@@ -136,10 +135,10 @@ class Mailchimp extends BaseModule
         $subscriberId = false;
         if ($address instanceof \comOrderAddress) {
             $subscriberId = $this->checkSubscription($address->get('email'));
+            $order->setProperty('mailchimp_email', $address->get('email'));
         }
 
         // Save subscribed status to be used for placeholder after step, and save subscriber id
-        $order->setProperty('mailchimp_email', $address->get('email'));
         if ($subscriberId) {
             $order->setProperty('mailchimp_status', 'subscribed');
             $order->setProperty('mailchimp_subscriber_id', $subscriberId);
@@ -168,23 +167,17 @@ class Mailchimp extends BaseModule
     /**
      * Function: checkSubscription
      *
-     * Checks if a customer is already subscribed to the MailChimp list.
+     * Checks if a customer is already subscribed to the MailChimp list and if so returns the subscriberId.
      * @param $email
-     * @return bool
+     * @return string | bool
      */
-    public function checkSubscription($email): bool
+    public function checkSubscription($email)
     {
-        // Make sure the email is lowercase.
-        $email = strtolower($email);
-
-        // Get an md5 hash of the email address
-        $hash = md5($email);
-
         // Get the list id
         $listId = $this->getConfig('listid');
 
         $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
-        $subscriberId = $mailChimpClient->checkSubscription($hash, $listId);
+        $subscriberId = $mailChimpClient->checkSubscription($email, $listId);
 
         // Return the subscriberId if there is a subscription.
         return $subscriberId ? $subscriberId : false;
@@ -203,14 +196,13 @@ class Mailchimp extends BaseModule
         // Don't subscribe customer if they haven't opted in and are not subscribed already
         if (!$order->getProperty('mailchimp_opt_in') && !$order->getProperty('mailchimp_status')) {
             $this->addOrderField($order);
-
             return;
         }
 
         // If customer is already subscribed, grab their subscriberId and add the MailChimpSubscriptionField (ignore any opt-in)
         if ($order->getProperty('mailchimp_status')) {
+            $this->commerce->modx->log(1,$order->getProperty('mailchimp_subscriber_id'));
             $this->addOrderField($order, $order->getProperty('mailchimp_subscriber_id'));
-
             return;
         }
 
@@ -219,29 +211,14 @@ class Mailchimp extends BaseModule
         $address = $addressType === 'shipping' ? $order->getShippingAddress() : $order->getBillingAddress();
 
         if ($address instanceof \comOrderAddress) {
-            // Try to get the right names
-            $firstName = $address->get('firstname');
-            $lastName = $address->get('lastname');
-            $fullName = $address->get('fullname');
-            GatewayHelper::normalizeNames($lastName, $lastName, $fullName);
+            $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
+            $result = $mailChimpClient->subscribeCustomer($this->getConfig('listid'), $address, $this->getConfig('doubleoptin'));
 
-            // If user chose double opt-in, set the status to pending for the new subscription.
-            $customerData = [];
-            $customerData['email_address'] = $address->get('email');
-            $customerData['status'] = $this->getConfig('doubleoptin') ? 'pending' : 'subscribed';
-            $customerData['merge_fields']['FNAME'] = $firstName;
-            $customerData['merge_fields']['LNAME'] = $lastName;
-
-            $customerDataJSON = json_encode($customerData);
-
-            $guzzler = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
-            $result = $guzzler->subscribeCustomer($this->getConfig('listid'), $customerDataJSON);
+            $this->commerce->modx->log(1,print_r($result,true));
 
             // Add order field for the new subscriber
             $this->addOrderField($order, $result['web_id']);
-
         }
-
     }
 
     /**

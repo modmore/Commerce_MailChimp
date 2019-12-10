@@ -4,6 +4,7 @@ namespace modmore\Commerce_MailChimp;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use modmore\Commerce\Gateways\Helpers\GatewayHelper;
 
 /**
  * Class MailChimpGuzzler
@@ -60,13 +61,29 @@ class MailchimpClient
         return $this->subscriberUrl . '?id=' . $subscriberId;
     }
 
-    public function subscribeCustomer(string $listId, $json)
+
+    public function subscribeCustomer(string $listId, \comOrderAddress $address, $doubleOptIn)
     {
+        // Try to get the right names
+        $firstName = $address->get('firstname');
+        $lastName = $address->get('lastname');
+        $fullName = $address->get('fullname');
+        GatewayHelper::normalizeNames($lastName, $lastName, $fullName);
+
+        // If user chose double opt-in, set the status to pending for the new subscription.
+        $customerData = [];
+        $customerData['email_address'] = $address->get('email');
+        $customerData['status'] = $doubleOptIn ? 'pending' : 'subscribed';
+        $customerData['merge_fields']['FNAME'] = $firstName;
+        $customerData['merge_fields']['LNAME'] = $lastName;
+
+        $customerDataJSON = json_encode($customerData);
+
         $client = new Client();
         try {
             $res = $client->request('POST', $this->apiUrl . 'lists/' . $listId . '/members/', [
                 'auth' => ['apikey', $this->apiKey],
-                'body' => $json
+                'body' => $customerDataJSON
             ]);
         } catch (GuzzleException $guzzleException) {
             $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
@@ -121,14 +138,20 @@ class MailchimpClient
      * Function: checkSubscription
      *
      * Checks if a customer is already subscribed to the MailChimp list or not.
-     * Returns a simple true or false.
+     * Returns a subscriberId or false.
      * Requires the Mailchimp list id and an MD5 hash of the customer's email address (lowercase).
-     * @param $hash
+     * @param $email
      * @param $listId
      * @return mixed
      */
-    public function checkSubscription($hash, $listId)
+    public function checkSubscription($email, $listId)
     {
+        // Make sure the email is lowercase.
+        $email = strtolower($email);
+
+        // Get an md5 hash of the email address
+        $hash = md5($email);
+
         $client = new Client();
         try {
             $res = $client->request('GET', $this->apiUrl . 'lists/' . $listId . '/members/' . $hash, [
@@ -143,6 +166,7 @@ class MailchimpClient
         }
         $responseArray = json_decode($res->getBody(), true);
         if (is_array($responseArray)) {
+            $this->commerce->modx->log(MODX_LOG_LEVEL_ERROR, 'subscriberId '.$responseArray['web_id']);
             return $responseArray['web_id'];
         }
 
