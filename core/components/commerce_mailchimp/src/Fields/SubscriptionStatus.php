@@ -1,5 +1,6 @@
 <?php
 namespace modmore\Commerce_MailChimp\Fields;
+use modmore\Commerce\Exceptions\ViewException;
 use modmore\Commerce\Order\Field\AbstractField;
 use modmore\Commerce_MailChimp\MailchimpClient;
 
@@ -10,7 +11,7 @@ use modmore\Commerce_MailChimp\MailchimpClient;
  * @package modmore\Commerce_MailChimp\Fields
  */
 class SubscriptionStatus extends AbstractField {
-    protected $guzzler;
+    protected $mailChimpClient;
 
     /**
      * Function: setSubscriberId
@@ -20,8 +21,8 @@ class SubscriptionStatus extends AbstractField {
      * @param $subscriberId
      */
     public function setSubscriberId($apiKey,$subscriberId) {
-        $this->guzzler = new MailchimpClient($this->commerce,$apiKey);
-        $this->value = $this->guzzler->getSubscriberUrl($subscriberId);
+        $this->mailChimpClient = new MailchimpClient($this->commerce,$apiKey);
+        $this->value = $this->mailChimpClient->getSubscriberUrl($subscriberId);
     }
 
     /**
@@ -31,7 +32,15 @@ class SubscriptionStatus extends AbstractField {
      * @return string
      */
     public function renderForAdmin() {
-        return '<i class="icon check"></i><a title="'.$this->commerce->adapter->lexicon('commerce_mailchimp.order_field.description').'" href="'.$this->value.'" target="_blank">'
+        $valueOutput = '<i class="icon check"></i><a title="'.$this->commerce->adapter->lexicon('commerce_mailchimp.order_field.description').'" href="'.$this->value.'" target="_blank">'
             .$this->commerce->adapter->lexicon('commerce_mailchimp.order_field.value.subscribed').'</a>';
+
+        try {
+            return $this->commerce->view()->renderString($valueOutput, [
+                'name' => $this->name
+            ]);
+        } catch (ViewException $e) {
+            return $this->name . ': ' . $valueOutput;
+        }
     }
 }
