@@ -32,15 +32,14 @@ class SubscriptionStatus extends AbstractField {
      * @return string
      */
     public function renderForAdmin() {
-        $valueOutput = '<i class="icon check"></i><a title="'.$this->commerce->adapter->lexicon('commerce_mailchimp.order_field.description').'" href="'.$this->value.'" target="_blank">'
-            .$this->commerce->adapter->lexicon('commerce_mailchimp.order_field.value.subscribed').'</a>';
-
         try {
-            return $this->commerce->view()->renderString($valueOutput, [
-                'name' => $this->name
+            return $this->commerce->view()->render('mailchimp/fields/subscription.twig', [
+                'name' => $this->name,
+                'value' => $this->value,
             ]);
         } catch (ViewException $e) {
-            return $this->name . ': ' . $valueOutput;
+            $this->commerce->adapter->log(1, '[' . __CLASS__ . '] ViewException rendering mailchimp/fields/subscription.twig: ' . $e->getMessage());
+            return 'Error rendering field.';
         }
     }
 }

@@ -40,6 +40,9 @@ class Mailchimp extends BaseModule
         // Load our lexicon
         $this->adapter->loadLexicon('commerce_mailchimp:default');
 
+        // Load our template path
+        $this->commerce->view()->addTemplatesPath(dirname(__DIR__, 2) . '/templates/');
+
         // Allow module to run only if configuration is complete.
         if ($this->moduleReady()) {
             // Check for opt-in value at cart, address and payment steps.
