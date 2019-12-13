@@ -1,4 +1,11 @@
-++ Mailchimp for Commerce 0.1.0-pl
-++ Released on
-++++++++++++++++++++++++++
+Mailchimp for Commerce 1.0.1
+------------------
+Released on 2019-12-13
+
+- Fix broken installation
+
+Mailchimp for Commerce 1.0.0
+------------------
+Released on 2019-12-13
+
 - First release
