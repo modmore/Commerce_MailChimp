@@ -52,7 +52,7 @@ Decide which template you would like to add the opt-in checkbox to:
 In the template of your choice, find the `<form> </form>` tags then add the following between them.
 
 ```
-{% if not mailchimp_subscribed %}
+{% if mailchimp_enabled and not mailchimp_subscribed %}
     <label class="c-subscribe-newsletter">
         <input type="checkbox" name="mailchimp_opt_in" value="on">
         {{ lex('commerce_mailchimp.subscribe_to_newsletter') }}
