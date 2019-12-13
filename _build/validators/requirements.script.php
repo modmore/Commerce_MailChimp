@@ -74,7 +74,6 @@ switch($options[xPDOTransport::PACKAGE_ACTION]) {
 
         $modxVersion = $modx->getVersionData();
         if (!checkVersion('MODX', $modxVersion['full_version'], [
-            '2019-03-12 12:00:00' => '2.6',
             '2019-11-27 12:00:00' => '2.7',
         ], $modx)) {
             $success = false;
@@ -96,7 +95,7 @@ switch($options[xPDOTransport::PACKAGE_ACTION]) {
         $commerce = $modx->getService('commerce', 'Commerce', $corePath, $params);
         if ($commerce instanceof Commerce) {
             if (!checkVersion('Commerce', (string)$commerce->version, [
-                '2019-01-01 12:00:00' => '1.0',
+                '2019-01-01 12:00:00' => '1.1',
             ], $modx)) {
                 $success = false;
             }
