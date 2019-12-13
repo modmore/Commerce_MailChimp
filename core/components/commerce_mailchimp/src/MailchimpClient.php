@@ -68,7 +68,7 @@ class MailchimpClient
         $firstName = $address->get('firstname');
         $lastName = $address->get('lastname');
         $fullName = $address->get('fullname');
-        GatewayHelper::normalizeNames($lastName, $lastName, $fullName);
+        GatewayHelper::normalizeNames($firstName, $lastName, $fullName);
 
         // If user chose double opt-in, set the status to pending for the new subscription.
         $customerData = [];
