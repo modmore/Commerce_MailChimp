@@ -160,11 +160,10 @@ class Mailchimp extends BaseModule
     public function addPlaceholder(Checkout $event): void
     {
         $order = $event->getOrder();
-        if ($order->getProperty('mailchimp_status') === 'subscribed') {
-            $data = $event->getData();
-            $data['mailchimp_subscribed'] = true;
-            $event->setData($data);
-        }
+        $data = $event->getData();
+        $data['mailchimp_enabled'] = true;
+        $data['mailchimp_subscribed'] = $order->getProperty('mailchimp_status') === 'subscribed';
+        $event->setData($data);
     }
 
     /**
@@ -204,7 +203,6 @@ class Mailchimp extends BaseModule
 
         // If customer is already subscribed, grab their subscriberId and add the MailChimpSubscriptionField (ignore any opt-in)
         if ($order->getProperty('mailchimp_status')) {
-            $this->commerce->modx->log(1,$order->getProperty('mailchimp_subscriber_id'));
             $this->addOrderField($order, $order->getProperty('mailchimp_subscriber_id'));
             return;
         }
