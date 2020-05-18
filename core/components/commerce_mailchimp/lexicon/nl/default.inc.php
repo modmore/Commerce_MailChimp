@@ -19,9 +19,10 @@ $_lang['commerce_mailchimp.address_type.shipping'] = 'Shipping Address';
 $_lang['commerce_mailchimp.double_opt_in'] = 'Enable Double Opt-In';
 $_lang['commerce_mailchimp.double_opt_in.description'] = 'Enabling double opt-in means a customer is sent a confirmation email with a link they must click before they are subscribed to the list.';
 
-$_lang['commerce_mailchimp.order_field.value.subscribed'] = 'Subscribed';
-$_lang['commerce_mailchimp.order_field.value.not_subscribed'] = 'Not Subscribed';
-$_lang['commerce_mailchimp.order_field.description'] = 'Click here to view this customer\'s subscription details in MailChimp.';
+$_lang['commerce_mailchimp.order_field.value.subscribed'] = 'Geabonneerd';
+$_lang['commerce_mailchimp.order_field.value.not_subscribed'] = 'Niet geabonneerd';
+$_lang['commerce_mailchimp.order_field.description'] = 'Klik hier om de abonnee in MailChimp te bekijken.';
 
 $_lang['commerce_mailchimp.subscribe_to_newsletter'] = 'Abonneren op de nieuwsbrief';
-$_lang['commerce.mailchimp_field.subscribe'] = 'MailChimp Abonnee';
+$_lang['commerce.mailchimp_field.subscribe'] = 'MailChimp status';
+$_lang['commerce.mailchimp_field.not_subscribed'] = 'MailChimp status';
