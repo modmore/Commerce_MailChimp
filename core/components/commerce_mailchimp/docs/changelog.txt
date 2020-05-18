@@ -1,3 +1,5 @@
+- Fix missing lexicon when customer is not subscribed
+
 Mailchimp for Commerce 1.0.1
 ------------------
 Released on 2019-12-13
