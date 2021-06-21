@@ -103,8 +103,8 @@ class Mailchimp extends BaseModule
             case 'cart':
             case 'address':
             case 'payment':
-                $data = $event->getData();
-                if ($data['mailchimp_opt_in'] === 'on') {
+                $data = $event->getDataKey('mailchimp_opt_in');
+                if ($data === 'on') {
                     $order = $event->getOrder();
                     $order->setProperty('mailchimp_opt_in', true);
                     $order->save();
