@@ -11,7 +11,7 @@ use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
 use modmore\Commerce_MailChimp\MailchimpClient;
-use Symfony\Component\EventDispatcher\EventDispatcher;
+use modmore\Commerce\Dispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
