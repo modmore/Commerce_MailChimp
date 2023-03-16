@@ -1,0 +1,17 @@
+<div class="horizontal field c-field-checkbox-group {{ field.inputClass }}">
+    <label>{{ field.label }}</label>
+    {% for category in field.data %}
+        <div class="ui relaxed list">
+            <label><strong>{{ category.label }}</strong></label>
+            {% for group in category.groups %}
+                <div class="item">
+                    <div class="ui child checkbox">
+                        <input id="mailchimp-group-{{ group.id }}" type="checkbox" name="properties[mailchimp_group][{{ group.id }}]" value="1" {% if group.value %}checked="checked"{% endif %}>
+                        <label for="mailchimp-group-{{ group.id }}">{{ group.label }}</label>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+    {% if field.description %}<p class="help">{{ field.description }}</p>{% endif %}
+</div>

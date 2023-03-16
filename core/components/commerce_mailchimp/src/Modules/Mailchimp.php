@@ -9,6 +9,7 @@ use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
+use modmore\Commerce_MailChimp\Admin\Widgets\Form\MailChimpCheckboxGroupField;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
 use modmore\Commerce_MailChimp\MailchimpClient;
 use modmore\Commerce\Dispatcher\EventDispatcher;
@@ -213,7 +214,12 @@ class Mailchimp extends BaseModule
 
         if ($address instanceof \comOrderAddress) {
             $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
-            $result = $mailChimpClient->subscribeCustomer($this->getConfig('listid'), $address, $this->getConfig('doubleoptin'));
+            $result = $mailChimpClient->subscribeCustomer(
+                $this->getConfig('listid'),
+                $address,
+                $this->getConfig('doubleoptin'),
+                $this->getConfig('mailchimp_group'),
+            );
 
             // Add order field for the new subscriber
             $this->addOrderField($order, $result['web_id']);
@@ -257,8 +263,8 @@ class Mailchimp extends BaseModule
 
         // On saving the module config modal, the form will reload adding the extra fields once an API key has been added.
         if ($apiKey !== '') {
-            $guzzler = new MailchimpClient($this->commerce, $apiKey);
-            $lists = $guzzler->getLists();
+            $client = new MailchimpClient($this->commerce, $apiKey);
+            $lists = $client->getLists();
 
             if (!$lists) {
                 return $fields;
@@ -272,6 +278,35 @@ class Mailchimp extends BaseModule
                 'value' => $module->getProperty('listid', ''),
                 'options' => $lists
             ]);
+
+            // Group checkbox field
+            $listId = $module->getProperty('listid', '');
+            $groupValues = $module->getProperty('mailchimp_group');
+            if ($categories = $client->getGroupCategories($listId)) {
+                $data = [];
+                foreach ($categories as $category) {
+                    $row = [
+                        'id' => $category['id'],
+                        'label' => $category['label'],
+                        'groups' => [],
+                    ];
+                    foreach ($client->getGroups($listId, $category['id']) as $group) {
+                        $row['groups'][] = [
+                            'id' => $group['id'],
+                            'label' => $group['label'],
+                            'value' => array_key_exists($group['id'], $groupValues) ? '1' : '',
+                        ];
+                    }
+                    $data[] = $row;
+                }
+                $fields[] = new MailChimpCheckboxGroupField($this->commerce, [
+                    'name' => 'properties[mailchimp_group]',
+                    'label' => $this->adapter->lexicon('commerce_mailchimp.groups'),
+                    'description' => $this->adapter->lexicon('commerce_mailchimp.groups.description'),
+                    'value' => $module->getProperty('mailchimp_group', ''),
+                    'data' => $data,
+                ]);
+            }
 
             // Select field for type of address to be submitted (billing or shipping)
             $fields[] = new SelectField($this->commerce, [
