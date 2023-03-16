@@ -68,26 +68,26 @@ if (!createObject('modSystemSetting', array(
 }
 
 
-$settings = include dirname(dirname(__FILE__)).'/_build/data/settings.php';
-foreach ($settings as $key => $opts) {
-    $val = $opts['value'];
-
-    if (isset($opts['xtype'])) $xtype = $opts['xtype'];
-    elseif (is_int($val)) $xtype = 'numberfield';
-    elseif (is_bool($val)) $xtype = 'modx-combo-boolean';
-    else $xtype = 'textfield';
-
-    if (!createObject('modSystemSetting', array(
-        'key' => 'commerce_mailchimp.' . $key,
-        'value' => $opts['value'],
-        'xtype' => $xtype,
-        'namespace' => 'commerce_mailchimp',
-        'area' => $opts['area'],
-        'editedon' => time(),
-    ), 'key', false)) {
-        echo "Error creating commerce_mailchimp.".$key." setting.\n";
-    }
-}
+//$settings = include dirname(dirname(__FILE__)).'/_build/data/settings.php';
+//foreach ($settings as $key => $opts) {
+//    $val = $opts['value'];
+//
+//    if (isset($opts['xtype'])) $xtype = $opts['xtype'];
+//    elseif (is_int($val)) $xtype = 'numberfield';
+//    elseif (is_bool($val)) $xtype = 'modx-combo-boolean';
+//    else $xtype = 'textfield';
+//
+//    if (!createObject('modSystemSetting', array(
+//        'key' => 'commerce_mailchimp.' . $key,
+//        'value' => $opts['value'],
+//        'xtype' => $xtype,
+//        'namespace' => 'commerce_mailchimp',
+//        'area' => $opts['area'],
+//        'editedon' => time(),
+//    ), 'key', false)) {
+//        echo "Error creating commerce_mailchimp.".$key." setting.\n";
+//    }
+//}
 
 
 $path = $modx->getOption('commerce.core_path', null, MODX_CORE_PATH . 'components/commerce/') . 'model/commerce/';
