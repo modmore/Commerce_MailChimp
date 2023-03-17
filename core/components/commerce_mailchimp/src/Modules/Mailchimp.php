@@ -9,6 +9,7 @@ use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
+use modmore\Commerce_MailChimp\Admin\Widgets\Form\MailChimpCheckboxGroupField;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
 use modmore\Commerce_MailChimp\MailchimpClient;
 use modmore\Commerce\Dispatcher\EventDispatcher;
@@ -17,6 +18,12 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 class Mailchimp extends BaseModule
 {
+    /**
+     * Cache is used to prevent multiple requests on every load of the module config window
+     */
+    public const CACHE_OPT = [
+        'cache_key' => 'commerce_mailchimp',
+    ];
 
     public function getName()
     {
@@ -213,7 +220,12 @@ class Mailchimp extends BaseModule
 
         if ($address instanceof \comOrderAddress) {
             $mailChimpClient = new MailchimpClient($this->commerce, $this->getConfig('apikey'));
-            $result = $mailChimpClient->subscribeCustomer($this->getConfig('listid'), $address, $this->getConfig('doubleoptin'));
+            $result = $mailChimpClient->subscribeCustomer(
+                $this->getConfig('listid'),
+                $address,
+                $this->getConfig('doubleoptin'),
+                $this->getConfig('mailchimp_groups'),
+            );
 
             // Add order field for the new subscriber
             $this->addOrderField($order, $result['web_id']);
@@ -245,6 +257,19 @@ class Mailchimp extends BaseModule
 
     public function getModuleConfiguration(\comModule $module)
     {
+        $reload = false;
+
+        // Check if list select box changed. Reload
+        // @todo: find an alternative to checking $_REQUEST
+        if (
+            isset($_REQUEST['properties'])
+            && isset($_REQUEST['properties']['listid'])
+            && !isset($_REQUEST['_handleSubmit'])
+        ) {
+            $this->commerce->modx->cacheManager->refresh(['commerce_mailchimp' => []]);
+            $reload = true;
+        }
+
         $apiKey = $module->getProperty('apikey', '');
 
         $fields = [];
@@ -257,11 +282,21 @@ class Mailchimp extends BaseModule
 
         // On saving the module config modal, the form will reload adding the extra fields once an API key has been added.
         if ($apiKey !== '') {
-            $guzzler = new MailchimpClient($this->commerce, $apiKey);
-            $lists = $guzzler->getLists();
+            $client = new MailchimpClient($this->commerce, $apiKey);
+
+            $lists = $this->commerce->modx->cacheManager->get('lists', self::CACHE_OPT);
+            if (!$lists) {
+                $lists = $client->getLists();
+                $this->commerce->modx->cacheManager->set('lists' , $lists, 60, self::CACHE_OPT);
+            }
 
             if (!$lists) {
                 return $fields;
+            }
+
+            $listId = $module->getProperty('listid', '');
+            if ($reload) {
+                $listId = filter_var($_REQUEST['properties']['listid'], FILTER_SANITIZE_STRING);
             }
 
             // Select field for MailChimp lists
@@ -269,9 +304,83 @@ class Mailchimp extends BaseModule
                 'name' => 'properties[listid]',
                 'label' => $this->adapter->lexicon('commerce_mailchimp.list'),
                 'description' => $this->adapter->lexicon('commerce_mailchimp.list.description'),
-                'value' => $module->getProperty('listid', ''),
-                'options' => $lists
+                'value' => $listId,
+                'options' => $lists,
+                'events' => [
+                    'change' => 'sendKeyOnChange'
+                ],
             ]);
+
+            // Saved values
+            $groupValues = $module->getProperty('mailchimp_groups');
+
+            $categories = [];
+
+            // See if we have categories in cache (expires after 1 min)
+            if (!$reload) {
+                $categories = $this->commerce->modx->cacheManager->get('categories_' . $listId, self::CACHE_OPT);
+            }
+
+            if (!$categories) {
+                // Short sleep so we don't hammer the API
+                sleep(1);
+                $categories = $client->getGroupCategories($listId);
+                $this->commerce->modx->cacheManager->set(
+                    'categories_' . $listId,
+                    $categories,
+                    60,
+                    self::CACHE_OPT
+                );
+            }
+
+            if ($categories) {
+                $data = [];
+                foreach ($categories as $category) {
+                    $row = [
+                        'id' => $category['id'],
+                        'label' => $category['label'],
+                        'groups' => [],
+                    ];
+
+                    // Attempt getting groups from cache (expires after 1 min)
+                    $groups = $this->commerce->modx->cacheManager->get(
+                        'groups_' . $category['id'] . $listId,
+                        self::CACHE_OPT
+                    );
+                    if (!$groups) {
+                        sleep(1);
+                        $groups = $client->getGroups($listId, $category['id']);
+                        $this->commerce->modx->cacheManager->set(
+                            'groups_' . $category['id'] . $listId,
+                            $groups,
+                            60,
+                            self::CACHE_OPT
+                        );
+                    }
+
+                    if (is_array($groups)) {
+                        foreach ($groups as $group) {
+                            $row['groups'][] = [
+                                'id' => $group['id'],
+                                'label' => $group['label'],
+                                'value' => !empty($groupValues) && array_key_exists($group['id'], $groupValues)
+                                    ? '1'
+                                    : '',
+                            ];
+                        }
+                    }
+
+                    $data[] = $row;
+                }
+
+                $fields[] = new MailChimpCheckboxGroupField($this->commerce, [
+                    'name' => 'properties[mailchimp_groups]',
+                    'label' => $this->adapter->lexicon('commerce_mailchimp.groups'),
+                    'description' => $this->adapter->lexicon('commerce_mailchimp.groups.description'),
+                    'value' => $module->getProperty('mailchimp_groups', ''),
+                    'data' => $data,
+                ]);
+            }
 
             // Select field for type of address to be submitted (billing or shipping)
             $fields[] = new SelectField($this->commerce, [

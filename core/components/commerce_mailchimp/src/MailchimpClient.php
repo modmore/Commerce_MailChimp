@@ -62,7 +62,7 @@ class MailchimpClient
     }
 
 
-    public function subscribeCustomer(string $listId, \comOrderAddress $address, $doubleOptIn)
+    public function subscribeCustomer(string $listId, \comOrderAddress $address, $doubleOptIn, array $groups = [])
     {
         // Try to get the right names
         $firstName = $address->get('firstname');
@@ -76,6 +76,13 @@ class MailchimpClient
         $customerData['status'] = $doubleOptIn ? 'pending' : 'subscribed';
         $customerData['merge_fields']['FNAME'] = $firstName;
         $customerData['merge_fields']['LNAME'] = $lastName;
+
+        // If groups are set, assign them to the subscription data
+        if (!empty($groups)) {
+            foreach ($groups as $id => $value) {
+                $customerData['interests'][$id] = true;
+            }
+        }
 
         $customerDataJSON = json_encode($customerData);
 
@@ -99,27 +106,40 @@ class MailchimpClient
     }
 
     /**
-     * Function: getLists
-     *
-     * Returns an array of lists in assigned MailChimp account.
-     * Array is formatted for the standard Commerce select field.
-     * @return array|bool
+     * @param string $uri
+     * @return array|null
      */
-    public function getLists()
+    protected function getRequest(string $uri): ?array
     {
         $client = new Client();
         try {
-            $res = $client->request('GET', $this->apiUrl . 'lists', [
+            $res = $client->request('GET', $this->apiUrl . $uri, [
                 'auth' => ['apikey', $this->apiKey],
             ]);
         } catch (GuzzleException $guzzleException) {
             $this->commerce->adapter->log(MODX_LOG_LEVEL_ERROR, $guzzleException->getMessage());
-            return false;
+            return null;
         }
 
         $responseArray = json_decode($res->getBody(), true);
         if (!is_array($responseArray)) {
-            return false;
+            return null;
+        }
+
+        return $responseArray;
+    }
+
+    /**
+     * Function: getLists
+     *
+     * Returns an array of lists in assigned MailChimp account.
+     * Array is formatted for the standard Commerce select field.
+     * @return array
+     */
+    public function getLists(): ?array
+    {
+        if (!$responseArray = $this->getRequest('lists')) {
+            return null;
         }
 
         $lists = [];
@@ -133,6 +153,48 @@ class MailchimpClient
         return $lists;
     }
 
+    /**
+     * @param string $listId
+     * @return array|null
+     */
+    public function getGroupCategories(string $listId): ?array
+    {
+        if (!$responseArray = $this->getRequest("lists/{$listId}/interest-categories")) {
+            return null;
+        }
+
+        $categories = [];
+        foreach ($responseArray['categories'] as $category) {
+            $categories[] = [
+                'id' => $category['id'],
+                'label' => $category['title']
+            ];
+        }
+
+        return $categories;
+    }
+
+    /**
+     * @param string $listId
+     * @param string $categoryId
+     * @return array|null
+     */
+    public function getGroups(string $listId, string $categoryId): ?array
+    {
+        if (!$responseArray = $this->getRequest("lists/{$listId}/interest-categories/{$categoryId}/interests")) {
+            return null;
+        }
+
+        $groups = [];
+        foreach ($responseArray['interests'] as $group) {
+            $groups[] = [
+                'id' => $group['id'],
+                'label' => $group['name']
+            ];
+        }
+
+        return $groups;
+    }
 
     /**
      * Function: checkSubscription
