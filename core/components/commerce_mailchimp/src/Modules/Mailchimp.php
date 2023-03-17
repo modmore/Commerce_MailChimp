@@ -257,6 +257,15 @@ class Mailchimp extends BaseModule
 
     public function getModuleConfiguration(\comModule $module)
     {
+        $reload = false;
+
+        // Check if list select box changed. Reload
+        // @todo: find an alternative to checking $_REQUEST
+        if (isset($_REQUEST['properties']) && isset($_REQUEST['properties']['listid'])) {
+            $this->commerce->modx->cacheManager->refresh(['commerce_mailchimp' => []]);
+            $reload = true;
+        }
+
         $apiKey = $module->getProperty('apikey', '');
 
         $fields = [];
@@ -281,23 +290,33 @@ class Mailchimp extends BaseModule
                 return $fields;
             }
 
+            $listId = $module->getProperty('listid', '');
+            if ($reload) {
+                $listId = filter_var($_REQUEST['properties']['listid'], FILTER_SANITIZE_STRING);
+            }
+
             // Select field for MailChimp lists
             $fields[] = new SelectField($this->commerce, [
                 'name' => 'properties[listid]',
                 'label' => $this->adapter->lexicon('commerce_mailchimp.list'),
                 'description' => $this->adapter->lexicon('commerce_mailchimp.list.description'),
-                'value' => $module->getProperty('listid', ''),
-                'options' => $lists
+                'value' => $listId,
+                'options' => $lists,
+                'events' => [
+                    'change' => 'sendKeyOnChange'
+                ],
             ]);
-
-            // Group checkbox field
-            $listId = $module->getProperty('listid', '');
 
             // Saved values
             $groupValues = $module->getProperty('mailchimp_groups');
 
+            $categories = [];
+
             // See if we have categories in cache (expires after 1 min)
-            $categories = $this->commerce->modx->cacheManager->get('categories_' . $listId, self::CACHE_OPT);
+            if (!$reload) {
+                $categories = $this->commerce->modx->cacheManager->get('categories_' . $listId, self::CACHE_OPT);
+            }
+
             if (!$categories) {
                 // Short sleep so we don't hammer the API
                 sleep(1);
