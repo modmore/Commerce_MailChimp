@@ -261,7 +261,11 @@ class Mailchimp extends BaseModule
 
         // Check if list select box changed. Reload
         // @todo: find an alternative to checking $_REQUEST
-        if (isset($_REQUEST['properties']) && isset($_REQUEST['properties']['listid'])) {
+        if (
+            isset($_REQUEST['properties'])
+            && isset($_REQUEST['properties']['listid'])
+            && !isset($_REQUEST['_handleSubmit'])
+        ) {
             $this->commerce->modx->cacheManager->refresh(['commerce_mailchimp' => []]);
             $reload = true;
         }
