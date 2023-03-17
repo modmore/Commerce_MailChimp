@@ -244,10 +244,9 @@ class Mailchimp extends BaseModule
     {
         if ($subscriberId) {
             $field = new SubscriptionStatus($this->commerce, 'mailchimp_field.subscribe', true);
-            if ($subscriberId) {
-                $field->setSubscriberId($this->getConfig('apikey'), $subscriberId);
-            }
-        } else {
+            $field->setSubscriberId($this->getConfig('apikey'), $subscriberId);
+        }
+        else {
             // Add a plain text field showing the customer is not subscribed.
             $field = new Text($this->commerce, 'mailchimp_field.not_subscribed', $this->adapter->lexicon('commerce_mailchimp.order_field.value.not_subscribed'));
         }
