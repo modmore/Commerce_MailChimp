@@ -18,6 +18,12 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 class Mailchimp extends BaseModule
 {
+    /**
+     * Cache is used to prevent multiple requests on every load of the module config window
+     */
+    public const CACHE_OPT = [
+        'cache_key' => 'commerce_mailchimp',
+    ];
 
     public function getName()
     {
@@ -264,7 +270,12 @@ class Mailchimp extends BaseModule
         // On saving the module config modal, the form will reload adding the extra fields once an API key has been added.
         if ($apiKey !== '') {
             $client = new MailchimpClient($this->commerce, $apiKey);
-            $lists = $client->getLists();
+
+            $lists = $this->commerce->modx->cacheManager->get('lists', self::CACHE_OPT);
+            if (!$lists) {
+                $lists = $client->getLists();
+                $this->commerce->modx->cacheManager->set('lists' , $lists, 60, self::CACHE_OPT);
+            }
 
             if (!$lists) {
                 return $fields;
@@ -281,8 +292,25 @@ class Mailchimp extends BaseModule
 
             // Group checkbox field
             $listId = $module->getProperty('listid', '');
+
+            // Saved values
             $groupValues = $module->getProperty('mailchimp_groups');
-            if ($categories = $client->getGroupCategories($listId)) {
+
+            // See if we have categories in cache (expires after 1 min)
+            $categories = $this->commerce->modx->cacheManager->get('categories_' . $listId, self::CACHE_OPT);
+            if (!$categories) {
+                // Short sleep so we don't hammer the API
+                sleep(1);
+                $categories = $client->getGroupCategories($listId);
+                $this->commerce->modx->cacheManager->set(
+                    'categories_' . $listId,
+                    $categories,
+                    60,
+                    self::CACHE_OPT
+                );
+            }
+
+            if ($categories) {
                 $data = [];
                 foreach ($categories as $category) {
                     $row = [
@@ -290,15 +318,38 @@ class Mailchimp extends BaseModule
                         'label' => $category['label'],
                         'groups' => [],
                     ];
-                    foreach ($client->getGroups($listId, $category['id']) as $group) {
-                        $row['groups'][] = [
-                            'id' => $group['id'],
-                            'label' => $group['label'],
-                            'value' => !empty($groupValues) && array_key_exists($group['id'], $groupValues) ? '1' : '',
-                        ];
+
+                    // Attempt getting groups from cache (expires after 1 min)
+                    $groups = $this->commerce->modx->cacheManager->get(
+                        'groups_' . $category['id'] . $listId,
+                        self::CACHE_OPT
+                    );
+                    if (!$groups) {
+                        sleep(1);
+                        $groups = $client->getGroups($listId, $category['id']);
+                        $this->commerce->modx->cacheManager->set(
+                            'groups_' . $category['id'] . $listId,
+                            $groups,
+                            60,
+                            self::CACHE_OPT
+                        );
                     }
+
+                    if (is_array($groups)) {
+                        foreach ($groups as $group) {
+                            $row['groups'][] = [
+                                'id' => $group['id'],
+                                'label' => $group['label'],
+                                'value' => !empty($groupValues) && array_key_exists($group['id'], $groupValues)
+                                    ? '1'
+                                    : '',
+                            ];
+                        }
+                    }
+
                     $data[] = $row;
                 }
+
                 $fields[] = new MailChimpCheckboxGroupField($this->commerce, [
                     'name' => 'properties[mailchimp_groups]',
                     'label' => $this->adapter->lexicon('commerce_mailchimp.groups'),
