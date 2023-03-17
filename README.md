@@ -9,6 +9,7 @@ Features
 - **Double Opt-In**: When enabled, customers will be sent a verification email before they're subscribed to the specified list.
 - **List Selection**: Select the MailChimp list to subscribe customers to directly within the Commerce configuration page.
 - **Subscription Status**: View a customer's MailChimp subscription status within the Commerce order detail page. If subscribed a link to that subscription within MailChimp is also provided.
+- **Assign groups**: Select from a list of groups to automatically assign a customer to when they subscribe. (Added in v1.1)
 
 Requirements
 -
@@ -34,6 +35,7 @@ This will open a pop-up window and a field where you can paste in your MailChimp
 
 Providing the API key was valid, you'll be presented with some extra fields.
 - **MailChimp List**: This dropdown box will be populated with lists from your MailChimp account. Select one.
+- **MailChimp Groups**: If groups are enabled on your MailChimp account, after selecting a list, you'll be presented with a choice of groups to automatically assign a customer to when they subscribe.
 - **Address Type**: Here you can select whether the shipping or billing address is used for subscriptions. Select one.
 - **Enable Double Opt-In**: (Optional) Enable this if you would like customers to be sent a verification email before they're subscribed to the list.
 

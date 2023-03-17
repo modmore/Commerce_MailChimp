@@ -1,3 +1,9 @@
+Mailchimp for Commerce 1.1.0
+------------------
+Released on 2022-03-
+
+- Add ability to select MailChimp groups to automatically assign customers to when they subscribe. [#4]
+
 Mailchimp for Commerce 1.0.3
 ------------------
 Released on 2021-06-21
