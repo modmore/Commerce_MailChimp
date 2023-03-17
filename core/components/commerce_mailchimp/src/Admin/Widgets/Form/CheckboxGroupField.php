@@ -4,7 +4,7 @@ namespace modmore\Commerce_MailChimp\Admin\Widgets\Form;
 
 use modmore\Commerce\Admin\Widgets\Form\TextField;
 
-class MailChimpCheckboxGroupField extends TextField
+class CheckboxGroupField extends TextField
 {
     public array $data;
 
@@ -25,7 +25,7 @@ class MailChimpCheckboxGroupField extends TextField
         ]);
     }
 
-    public function setValue($value): MailChimpCheckboxGroupField
+    public function setValue($value): CheckboxGroupField
     {
         return $this;
     }

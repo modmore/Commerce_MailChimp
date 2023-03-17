@@ -9,7 +9,7 @@ use modmore\Commerce\Events\Checkout;
 use modmore\Commerce\Events\OrderState;
 use modmore\Commerce\Modules\BaseModule;
 use modmore\Commerce\Order\Field\Text;
-use modmore\Commerce_MailChimp\Admin\Widgets\Form\MailChimpCheckboxGroupField;
+use modmore\Commerce_MailChimp\Admin\Widgets\Form\CheckboxGroupField;
 use modmore\Commerce_MailChimp\Fields\SubscriptionStatus;
 use modmore\Commerce_MailChimp\MailchimpClient;
 use modmore\Commerce\Dispatcher\EventDispatcher;
@@ -373,7 +373,7 @@ class Mailchimp extends BaseModule
                     $data[] = $row;
                 }
 
-                $fields[] = new MailChimpCheckboxGroupField($this->commerce, [
+                $fields[] = new CheckboxGroupField($this->commerce, [
                     'name' => 'properties[mailchimp_groups]',
                     'label' => $this->adapter->lexicon('commerce_mailchimp.groups'),
                     'description' => $this->adapter->lexicon('commerce_mailchimp.groups.description'),
