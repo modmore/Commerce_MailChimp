@@ -77,8 +77,11 @@ class MailchimpClient
         $customerData['merge_fields']['FNAME'] = $firstName;
         $customerData['merge_fields']['LNAME'] = $lastName;
 
+        // If groups are set, assign them to the subscription data
         if (!empty($groups)) {
-            // @todo alter subscribe request to assign groups
+            foreach ($groups as $id => $value) {
+                $customerData['interests'][$id] = true;
+            }
         }
 
         $customerDataJSON = json_encode($customerData);

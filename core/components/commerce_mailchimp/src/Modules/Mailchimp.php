@@ -218,7 +218,7 @@ class Mailchimp extends BaseModule
                 $this->getConfig('listid'),
                 $address,
                 $this->getConfig('doubleoptin'),
-                $this->getConfig('mailchimp_group'),
+                $this->getConfig('mailchimp_groups'),
             );
 
             // Add order field for the new subscriber
@@ -281,7 +281,7 @@ class Mailchimp extends BaseModule
 
             // Group checkbox field
             $listId = $module->getProperty('listid', '');
-            $groupValues = $module->getProperty('mailchimp_group');
+            $groupValues = $module->getProperty('mailchimp_groups');
             if ($categories = $client->getGroupCategories($listId)) {
                 $data = [];
                 foreach ($categories as $category) {
@@ -294,16 +294,16 @@ class Mailchimp extends BaseModule
                         $row['groups'][] = [
                             'id' => $group['id'],
                             'label' => $group['label'],
-                            'value' => array_key_exists($group['id'], $groupValues) ? '1' : '',
+                            'value' => !empty($groupValues) && array_key_exists($group['id'], $groupValues) ? '1' : '',
                         ];
                     }
                     $data[] = $row;
                 }
                 $fields[] = new MailChimpCheckboxGroupField($this->commerce, [
-                    'name' => 'properties[mailchimp_group]',
+                    'name' => 'properties[mailchimp_groups]',
                     'label' => $this->adapter->lexicon('commerce_mailchimp.groups'),
                     'description' => $this->adapter->lexicon('commerce_mailchimp.groups.description'),
-                    'value' => $module->getProperty('mailchimp_group', ''),
+                    'value' => $module->getProperty('mailchimp_groups', ''),
                     'data' => $data,
                 ]);
             }
