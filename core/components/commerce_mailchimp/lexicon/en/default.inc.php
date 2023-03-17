@@ -11,7 +11,7 @@ $_lang['commerce_mailchimp.list.description'] = 'Select the MailChimp list you w
 $_lang['commerce_mailchimp.list.select'] = 'Select a MailChimp list...';
 
 $_lang['commerce_mailchimp.groups'] = 'MailChimp Groups';
-$_lang['commerce_mailchimp.groups.description'] = 'Optional: Select the group you would like to automatically subscribe customers to.';
+$_lang['commerce_mailchimp.groups.description'] = 'Optional: Select the group(s) you would like to assign customers to.';
 
 $_lang['commerce_mailchimp.address_type'] = 'Address Type';
 $_lang['commerce_mailchimp.address_type.description'] = 'Should billing addresses or shipping addresses be submitted to Mailchimp?';
