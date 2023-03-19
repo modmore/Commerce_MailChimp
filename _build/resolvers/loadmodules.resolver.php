@@ -1,6 +1,10 @@
 <?php
-/* @var modX $modx */
 
+/**
+ * @var modX $modx
+ * @var array $options
+ * @var xPDOTransport $transport
+ */
 if ($transport->xpdo) {
     switch ($options[xPDOTransport::PACKAGE_ACTION]) {
         case xPDOTransport::ACTION_UPGRADE:

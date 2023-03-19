@@ -19,7 +19,7 @@ class CheckboxGroupField extends TextField
 
     public function getHTML(): string
     {
-        return $this->commerce->view()->render('mailchimp/fields/admin/mailchimpcheckboxgroup.twig', [
+        return $this->commerce->view()->render('mailchimp/fields/admin/checkboxgroup.twig', [
             'field' => $this,
             'data' => $this->data,
         ]);
